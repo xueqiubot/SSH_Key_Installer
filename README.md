@@ -22,6 +22,7 @@ bash <(curl -fsSL git.io/key.sh) [options...] <arg>
 * `-f` - Get the public key from the local file, the arguments is the local file path
 * `-p` - Change SSH port, the arguments is port number
 * `-d` - Disable password login
+* `-r` - Disable root password login (root user only)
 
 ## Lisence
 

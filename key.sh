@@ -28,7 +28,8 @@ Options:
   -u	Get the public key from the URL, the arguments is the URL
   -f	Get the public key from the local file, the arguments is the local file path
   -p	Change SSH port, the arguments is port number
-  -d	Disable password login"
+  -d	Disable password login
+  -r	Disable root password login (root user only)"
 }
 
 if [ $# -eq 0 ]; then
@@ -148,7 +149,44 @@ disable_password() {
     fi
 }
 
-while getopts "og:u:f:p:d" OPT; do
+disable_root_password() {
+    echo -e "${INFO} Disabling root password login..."
+    if [ $(uname -o) == Android ]; then
+        # 检查是否已存在 Match User root 配置
+        if grep -q "Match User root" $PREFIX/etc/ssh/sshd_config; then
+            echo -e "${INFO} Match User root already exists, updating..."
+            sed -i '/Match User root/,/^Match\|^$/{ s/.*PasswordAuthentication.*/    PasswordAuthentication no/; }' $PREFIX/etc/ssh/sshd_config
+        else
+            echo -e "\n# Disable root password login\nMatch User root\n    PasswordAuthentication no" >> $PREFIX/etc/ssh/sshd_config
+        fi
+        if grep -q "Match User root" $PREFIX/etc/ssh/sshd_config; then
+            RESTART_SSHD=2
+            echo -e "${INFO} Disabled root password login successfully!"
+        else
+            RESTART_SSHD=0
+            echo -e "${ERROR} Disable root password login failed!"
+            exit 1
+        fi
+    else
+        # 检查是否已存在 Match User root 配置
+        if grep -q "Match User root" /etc/ssh/sshd_config; then
+            echo -e "${INFO} Match User root already exists, updating..."
+            $SUDO sed -i '/Match User root/,/^Match\|^$/{ s/.*PasswordAuthentication.*/    PasswordAuthentication no/; }' /etc/ssh/sshd_config
+        else
+            echo -e "\n# Disable root password login\nMatch User root\n    PasswordAuthentication no" | $SUDO tee -a /etc/ssh/sshd_config > /dev/null
+        fi
+        if grep -q "Match User root" /etc/ssh/sshd_config; then
+            RESTART_SSHD=1
+            echo -e "${INFO} Disabled root password login successfully!"
+        else
+            RESTART_SSHD=0
+            echo -e "${ERROR} Disable root password login failed!"
+            exit 1
+        fi
+    fi
+}
+
+while getopts "og:u:f:p:dr" OPT; do
     case $OPT in
     o)
         OVERWRITE=1
@@ -174,6 +212,9 @@ while getopts "og:u:f:p:d" OPT; do
         ;;
     d)
         disable_password
+        ;;
+    r)
+        disable_root_password
         ;;
     ?)
         USAGE
